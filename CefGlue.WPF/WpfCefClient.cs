@@ -50,5 +50,24 @@ namespace Xilium.CefGlue.WPF
         {
             return _jsDialogHandler;
         }
+
+        protected override CefContextMenuHandler GetContextMenuHandler()
+        {
+            if (this._owner.EnableContextMenu)
+            {
+                return null;
+            }
+            return EmptyCefContextMenuHandlerImpl.Instance;
+        }
+
+        private class EmptyCefContextMenuHandlerImpl : CefContextMenuHandler
+        {
+            public static EmptyCefContextMenuHandlerImpl Instance = new EmptyCefContextMenuHandlerImpl();
+
+            protected override void OnBeforeContextMenu(CefBrowser browser, CefFrame frame, CefContextMenuParams state, CefMenuModel model)
+            {
+                model.Clear();
+            }
+        }
     }
 }
