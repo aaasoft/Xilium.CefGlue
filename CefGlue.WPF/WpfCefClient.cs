@@ -26,6 +26,11 @@ namespace Xilium.CefGlue.WPF
             _jsDialogHandler = new WpfCefJSDialogHandler();
         }
 
+        protected override CefDownloadHandler GetDownloadHandler()
+        {
+            return _owner.DownloadHandler;
+        }
+
         protected override CefLifeSpanHandler GetLifeSpanHandler()
         {
             return _lifeSpanHandler;
