@@ -31,6 +31,8 @@ c2cs_types = {
     'void': 'void',
     'char': 'byte',
     'int': 'int',
+    'int16': 'short',
+    'uint16': 'ushort',
     'int32': 'int',
     'uint32': 'uint',
     'int64': 'long',
@@ -53,6 +55,8 @@ c2cs_types = {
     'cef_cursor_handle_t': 'IntPtr',
 
     'cef_base_t': 'cef_base_t',
+    'cef_base_ref_counted_t': 'cef_base_ref_counted_t',
+    'cef_base_scoped_t': 'cef_base_scoped_t',
 
     'cef_color_t': 'uint',
 
@@ -76,6 +80,7 @@ c2cs_types = {
     'cef_request_context_settings_t': 'cef_request_context_settings_t',
     'cef_draggable_region_t': 'cef_draggable_region_t',
     'cef_pdf_print_settings_t': 'cef_pdf_print_settings_t',
+    'cef_composition_underline_t': 'cef_composition_underline_t',
 
     # platform dependend structs
     'cef_main_args_t': 'cef_main_args_t',
@@ -87,6 +92,8 @@ c2cs_types = {
     'cef_duplex_mode_t': 'CefDuplexMode',
 
     'cef_cursor_type_t': 'CefCursorType',
+
+	'cef_range_t': 'cef_range_t',
     }
 
 c2cs_platform_retval = {
@@ -145,11 +152,18 @@ c2cs_enumtypes = {
     'cef_cert_status_t': 'CefCertStatus',
     'cef_response_filter_status_t': 'CefResponseFilterStatus',
     'cef_referrer_policy_t': 'CefReferrerPolicy',
+	'cef_color_type_t': 'CefColorType',
+	'cef_alpha_type_t': 'CefAlphaType',
+    'cef_cdm_registration_error_t': 'CefCdmRegistrationError',
+	'cef_ssl_version_t': 'CefSslVersion',
+	'cef_ssl_content_status_t': 'CefSslContentStatus',
+    'cef_menu_color_type_t': 'CefMenuColorType',
+    'cef_state_t': 'CefState',
     }
 
 c2cs_structtypes = { }
 
-cs_keywords = [ 'object', 'string', 'checked', 'event', 'params' ]
+cs_keywords = [ 'object', 'string', 'checked', 'event', 'params', 'delegate' ]
 
 classdef = { }
 

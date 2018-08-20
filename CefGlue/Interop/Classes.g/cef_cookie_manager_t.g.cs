@@ -12,7 +12,7 @@ namespace Xilium.CefGlue.Interop
     [SuppressMessage("Microsoft.Design", "CA1049:TypesThatOwnNativeResourcesShouldBeDisposable")]
     internal unsafe struct cef_cookie_manager_t
     {
-        internal cef_base_t _base;
+        internal cef_base_ref_counted_t _base;
         internal IntPtr _set_supported_schemes;
         internal IntPtr _visit_all_cookies;
         internal IntPtr _visit_url_cookies;
@@ -24,6 +24,10 @@ namespace Xilium.CefGlue.Interop
         // GetGlobalManager
         [DllImport(libcef.DllName, EntryPoint = "cef_cookie_manager_get_global_manager", CallingConvention = libcef.CEF_CALL)]
         public static extern cef_cookie_manager_t* get_global_manager(cef_completion_callback_t* callback);
+        
+        // GetBlockingManager
+        [DllImport(libcef.DllName, EntryPoint = "cef_cookie_manager_get_blocking_manager", CallingConvention = libcef.CEF_CALL)]
+        public static extern cef_cookie_manager_t* get_blocking_manager();
         
         // CreateManager
         [DllImport(libcef.DllName, EntryPoint = "cef_cookie_manager_create_manager", CallingConvention = libcef.CEF_CALL)]

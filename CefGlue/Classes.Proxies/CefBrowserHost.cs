@@ -147,6 +147,19 @@
         }
 
         /// <summary>
+        /// Helper for closing a browser. Call this method from the top-level window
+        /// close handler. Internally this calls CloseBrowser(false) if the close has
+        /// not yet been initiated. This method returns false while the close is
+        /// pending and true after the close has completed. See CloseBrowser() and
+        /// CefLifeSpanHandler::DoClose() documentation for additional usage
+        /// information. This method must be called on the browser process UI thread.
+        /// </summary>
+        public bool TryCloseBrowser()
+        {
+            return cef_browser_host_t.try_close_browser(_self) != 0;
+        }
+
+        /// <summary>
         /// Set whether the browser is focused.
         /// </summary>
         public void SetFocus(bool focus)
@@ -155,16 +168,9 @@
         }
 
         /// <summary>
-        /// Set whether the window containing the browser is visible
-        /// (minimized/unminimized, app hidden/unhidden, etc). Only used on Mac OS X.
-        /// </summary>
-        public void SetWindowVisibility(bool visible)
-        {
-            cef_browser_host_t.set_window_visibility(_self, visible ? 1 : 0);
-        }
-
-        /// <summary>
-        /// Retrieve the window handle for this browser.
+        /// Retrieve the window handle for this browser. If this browser is wrapped in
+        /// a CefBrowserView this method should be called on the browser process UI
+        /// thread and it will return the handle for the top-level native window.
         /// </summary>
         public IntPtr GetWindowHandle()
         {
@@ -173,12 +179,21 @@
 
         /// <summary>
         /// Retrieve the window handle of the browser that opened this browser. Will
-        /// return NULL for non-popup windows. This method can be used in combination
-        /// with custom handling of modal windows.
+        /// return NULL for non-popup windows or if this browser is wrapped in a
+        /// CefBrowserView. This method can be used in combination with custom handling
+        /// of modal windows.
         /// </summary>
         public IntPtr GetOpenerWindowHandle()
         {
             return cef_browser_host_t.get_opener_window_handle(_self);
+        }
+
+        /// <summary>
+        /// Returns true if this browser is wrapped in a CefBrowserView.
+        /// </summary>
+        public bool HasView
+        {
+            get { return cef_browser_host_t.has_view(_self) != 0; }
         }
 
         /// <summary>
@@ -272,6 +287,30 @@
         }
 
         /// <summary>
+        /// Download |image_url| and execute |callback| on completion with the images
+        /// received from the renderer. If |is_favicon| is true then cookies are not
+        /// sent and not accepted during download. Images with density independent
+        /// pixel (DIP) sizes larger than |max_image_size| are filtered out from the
+        /// image results. Versions of the image at different scale factors may be
+        /// downloaded up to the maximum scale factor supported by the system. If there
+        /// are no image results &lt;= |max_image_size| then the smallest image is resized
+        /// to |max_image_size| and is the only result. A |max_image_size| of 0 means
+        /// unlimited. If |bypass_cache| is true then |image_url| is requested from the
+        /// server even if it is present in the browser cache.
+        /// </summary>
+        public void DownloadImage(string imageUrl, bool isFavIcon, uint maxImageSize, bool bypassCache, CefDownloadImageCallback callback)
+        {
+            if (string.IsNullOrEmpty(imageUrl)) throw new ArgumentNullException("imageUrl");
+
+            fixed (char* imageUrl_ptr = imageUrl)
+            {
+                var n_imageUrl = new cef_string_t(imageUrl_ptr, imageUrl.Length);
+                var n_callback = callback.ToNative();
+                cef_browser_host_t.download_image(_self, &n_imageUrl, isFavIcon ? 1 : 0, maxImageSize, bypassCache ? 1 : 0, n_callback);
+            }
+        }
+
+        /// <summary>
         /// Print the current browser contents.
         /// </summary>
         public void Print()
@@ -305,12 +344,15 @@
         }
 
         /// <summary>
-        /// Search for |searchText|. |identifier| can be used to have multiple searches
-        /// running simultaniously. |forward| indicates whether to search forward or
-        /// backward within the page. |matchCase| indicates whether the search should
-        /// be case-sensitive. |findNext| indicates whether this is the first request
-        /// or a follow-up. The CefFindHandler instance, if any, returned via
-        /// CefClient::GetFindHandler will be called to report find results.
+        /// Search for |searchText|. |identifier| must be a unique ID and these IDs
+        /// must strictly increase so that newer requests always have greater IDs than
+        /// older requests. If |identifier| is zero or less than the previous ID value
+        /// then it will be automatically assigned a new valid ID. |forward| indicates
+        /// whether to search forward or backward within the page. |matchCase|
+        /// indicates whether the search should be case-sensitive. |findNext| indicates
+        /// whether this is the first request or a follow-up. The CefFindHandler
+        /// instance, if any, returned via CefClient::GetFindHandler will be called to
+        /// report find results.
         /// </summary>
         public void Find(int identifier, string searchText, bool forward, bool matchCase, bool findNext)
         {
@@ -331,8 +373,13 @@
         }
 
         /// <summary>
-        /// Open developer tools in its own window. If |inspect_element_at| is non-
-        /// empty the element at the specified (x,y) location will be inspected.
+        /// Open developer tools (DevTools) in its own browser. The DevTools browser
+        /// will remain associated with this browser. If the DevTools browser is
+        /// already open then it will be focused, in which case the |windowInfo|,
+        /// |client| and |settings| parameters will be ignored. If |inspect_element_at|
+        /// is non-empty then the element at the specified (x,y) location will be
+        /// inspected. The |windowInfo| parameter will be ignored if this browser is
+        /// wrapped in a CefBrowserView.
         /// </summary>
         public void ShowDevTools(CefWindowInfo windowInfo, CefClient client, CefBrowserSettings browserSettings, CefPoint inspectElementAt)
         {
@@ -342,12 +389,23 @@
         }
 
         /// <summary>
-        /// Explicitly close the developer tools window if one exists for this browser
-        /// instance.
+        /// Explicitly close the associated DevTools browser, if any.
         /// </summary>
         public void CloseDevTools()
         {
             cef_browser_host_t.close_dev_tools(_self);
+        }
+
+        /// <summary>
+        /// Returns true if this browser currently has an associated DevTools browser.
+        /// Must be called on the browser process UI thread.
+        /// </summary>
+        public bool HasDevTools
+        {
+            get
+            {
+                return cef_browser_host_t.has_dev_tools(_self) != 0;
+            }
         }
 
         /// <summary>
@@ -554,29 +612,83 @@
         }
 
         /// <summary>
-        /// Get the NSTextInputContext implementation for enabling IME on Mac when
-        /// window rendering is disabled.
+        /// Begins a new composition or updates the existing composition. Blink has a
+        /// special node (a composition node) that allows the input method to change
+        /// text without affecting other DOM nodes. |text| is the optional text that
+        /// will be inserted into the composition node. |underlines| is an optional set
+        /// of ranges that will be underlined in the resulting text.
+        /// |replacement_range| is an optional range of the existing text that will be
+        /// replaced. |selection_range| is an optional range of the resulting text that
+        /// will be selected after insertion or replacement. The |replacement_range|
+        /// value is only used on OS X.
+        /// This method may be called multiple times as the composition changes. When
+        /// the client is done making changes the composition should either be canceled
+        /// or completed. To cancel the composition call ImeCancelComposition. To
+        /// complete the composition call either ImeCommitText or
+        /// ImeFinishComposingText. Completion is usually signaled when:
+        /// A. The client receives a WM_IME_COMPOSITION message with a GCS_RESULTSTR
+        /// flag (on Windows), or;
+        /// B. The client receives a "commit" signal of GtkIMContext (on Linux), or;
+        /// C. insertText of NSTextInput is called (on Mac).
+        /// This method is only used when window rendering is disabled.
         /// </summary>
-        public IntPtr GetNSTextInputContext()
+        public void ImeSetComposition(string text,
+            int underlinesCount,
+            CefCompositionUnderline underlines,
+            CefRange replacementRange,
+            CefRange selectionRange)
         {
-            return cef_browser_host_t.get_nstext_input_context(_self);
+            fixed (char* text_ptr = text)
+            {
+                cef_string_t n_text = new cef_string_t(text_ptr, text != null ? text.Length : 0);
+                UIntPtr n_underlinesCount = checked((UIntPtr)underlinesCount);
+                var n_underlines = underlines.ToNative();
+                cef_range_t n_replacementRange = new cef_range_t(replacementRange.From, replacementRange.To);
+                cef_range_t n_selectionRange = new cef_range_t(selectionRange.From, selectionRange.To);
+
+                cef_browser_host_t.ime_set_composition(_self, &n_text, n_underlinesCount, &n_underlines, &n_replacementRange, &n_selectionRange);
+            }
         }
 
         /// <summary>
-        /// Handles a keyDown event prior to passing it through the NSTextInputClient
-        /// machinery.
+        /// Completes the existing composition by optionally inserting the specified
+        /// |text| into the composition node. |replacement_range| is an optional range
+        /// of the existing text that will be replaced. |relative_cursor_pos| is where
+        /// the cursor will be positioned relative to the current cursor position. See
+        /// comments on ImeSetComposition for usage. The |replacement_range| and
+        /// |relative_cursor_pos| values are only used on OS X.
+        /// This method is only used when window rendering is disabled.
         /// </summary>
-        public void HandleKeyEventBeforeTextInputClient(IntPtr keyEvent)
+        public void ImeCommitText(string text, CefRange replacementRange, int relativeCursorPos)
         {
-            cef_browser_host_t.handle_key_event_before_text_input_client(_self, keyEvent);
+            fixed (char* text_ptr = text)
+            {
+                cef_string_t n_text = new cef_string_t(text_ptr, text != null ? text.Length : 0);
+                var n_replacementRange = new cef_range_t(replacementRange.From, replacementRange.To);
+                cef_browser_host_t.ime_commit_text(_self, &n_text, &n_replacementRange, relativeCursorPos);
+            }
         }
 
         /// <summary>
-        /// Performs any additional actions after NSTextInputClient handles the event.
+        /// Completes the existing composition by applying the current composition node
+        /// contents. If |keep_selection| is false the current selection, if any, will
+        /// be discarded. See comments on ImeSetComposition for usage.
+        /// This method is only used when window rendering is disabled.
         /// </summary>
-        public void HandleKeyEventAfterTextInputClient(IntPtr keyEvent)
+        public void ImeFinishComposingText(bool keepSelection)
         {
-            cef_browser_host_t.handle_key_event_after_text_input_client(_self, keyEvent);
+            cef_browser_host_t.ime_finish_composing_text(_self, keepSelection ? 1 : 0);
+        }
+
+        /// <summary>
+        /// Cancels the existing composition and discards the composition node
+        /// contents without applying them. See comments on ImeSetComposition for
+        /// usage.
+        /// This method is only used when window rendering is disabled.
+        /// </summary>
+        public void ImeCancelComposition()
+        {
+            cef_browser_host_t.ime_cancel_composition(_self);
         }
 
         /// <summary>
@@ -658,6 +770,81 @@
         public void DragSourceSystemDragEnded()
         {
             cef_browser_host_t.drag_source_system_drag_ended(_self);
+        }
+
+        /// <summary>
+        /// Returns the current visible navigation entry for this browser. This method
+        /// can only be called on the UI thread.
+        /// </summary>
+        public CefNavigationEntry GetVisibleNavigationEntry()
+        {
+            return CefNavigationEntry.FromNativeOrNull(
+                cef_browser_host_t.get_visible_navigation_entry(_self)
+                );
+        }
+
+        /// <summary>
+        /// Set accessibility state for all frames. |accessibility_state| may be
+        /// default, enabled or disabled. If |accessibility_state| is STATE_DEFAULT
+        /// then accessibility will be disabled by default and the state may be further
+        /// controlled with the "force-renderer-accessibility" and
+        /// "disable-renderer-accessibility" command-line switches. If
+        /// |accessibility_state| is STATE_ENABLED then accessibility will be enabled.
+        /// If |accessibility_state| is STATE_DISABLED then accessibility will be
+        /// completely disabled.
+        /// For windowed browsers accessibility will be enabled in Complete mode (which
+        /// corresponds to kAccessibilityModeComplete in Chromium). In this mode all
+        /// platform accessibility objects will be created and managed by Chromium's
+        /// internal implementation. The client needs only to detect the screen reader
+        /// and call this method appropriately. For example, on macOS the client can
+        /// handle the @"AXEnhancedUserInterface" accessibility attribute to detect
+        /// VoiceOver state changes and on Windows the client can handle WM_GETOBJECT
+        /// with OBJID_CLIENT to detect accessibility readers.
+        /// For windowless browsers accessibility will be enabled in TreeOnly mode
+        /// (which corresponds to kAccessibilityModeWebContentsOnly in Chromium). In
+        /// this mode renderer accessibility is enabled, the full tree is computed, and
+        /// events are passed to CefAccessibiltyHandler, but platform accessibility
+        /// objects are not created. The client may implement platform accessibility
+        /// objects using CefAccessibiltyHandler callbacks if desired.
+        /// </summary>
+        public void SetAccessibilityState(CefState accessibilityState)
+        {
+            cef_browser_host_t.set_accessibility_state(_self, accessibilityState);
+        }
+
+        /// <summary>
+        /// Enable notifications of auto resize via CefDisplayHandler::OnAutoResize.
+        /// Notifications are disabled by default. |min_size| and |max_size| define the
+        /// range of allowed sizes.
+        /// </summary>
+        public void SetAutoResizeEnabled(bool enabled, CefSize minSize, CefSize maxSize)
+        {
+            var nMinSize = new cef_size_t(minSize.Width, minSize.Height);
+            var nMaxSize = new cef_size_t(maxSize.Width, maxSize.Height);
+            cef_browser_host_t.set_auto_resize_enabled(_self, enabled ? 1 : 0, &nMinSize, &nMaxSize);
+        }
+
+        /// <summary>
+        /// Returns the extension hosted in this browser or NULL if no extension is
+        /// hosted. See CefRequestContext::LoadExtension for details.
+        /// </summary>
+        public CefExtension GetExtension()
+        {
+            var nExtension = cef_browser_host_t.get_extension(_self);
+            return CefExtension.FromNativeOrNull(nExtension);
+        }
+
+        /// <summary>
+        /// Returns true if this browser is hosting an extension background script.
+        /// Background hosts do not have a window and are not displayable. See
+        /// CefRequestContext::LoadExtension for details.
+        /// </summary>
+        public bool IsBackgroundHost
+        {
+            get
+            {
+                return cef_browser_host_t.is_background_host(_self) != 0;
+            }
         }
     }
 }

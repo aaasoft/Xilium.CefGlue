@@ -12,7 +12,7 @@ namespace Xilium.CefGlue.Interop
     [SuppressMessage("Microsoft.Design", "CA1049:TypesThatOwnNativeResourcesShouldBeDisposable")]
     internal unsafe struct cef_request_handler_t
     {
-        internal cef_base_t _base;
+        internal cef_base_ref_counted_t _base;
         internal IntPtr _on_before_browse;
         internal IntPtr _on_open_urlfrom_tab;
         internal IntPtr _on_before_resource_load;
@@ -22,9 +22,12 @@ namespace Xilium.CefGlue.Interop
         internal IntPtr _get_resource_response_filter;
         internal IntPtr _on_resource_load_complete;
         internal IntPtr _get_auth_credentials;
+        internal IntPtr _can_get_cookies;
+        internal IntPtr _can_set_cookie;
         internal IntPtr _on_quota_request;
         internal IntPtr _on_protocol_execution;
         internal IntPtr _on_certificate_error;
+        internal IntPtr _on_select_client_certificate;
         internal IntPtr _on_plugin_crashed;
         internal IntPtr _on_render_view_ready;
         internal IntPtr _on_render_process_terminated;
@@ -75,7 +78,7 @@ namespace Xilium.CefGlue.Interop
         #if !DEBUG
         [SuppressUnmanagedCodeSecurity]
         #endif
-        internal delegate void on_resource_redirect_delegate(cef_request_handler_t* self, cef_browser_t* browser, cef_frame_t* frame, cef_request_t* request, cef_string_t* new_url);
+        internal delegate void on_resource_redirect_delegate(cef_request_handler_t* self, cef_browser_t* browser, cef_frame_t* frame, cef_request_t* request, cef_response_t* response, cef_string_t* new_url);
         
         [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
         #if !DEBUG
@@ -105,6 +108,18 @@ namespace Xilium.CefGlue.Interop
         #if !DEBUG
         [SuppressUnmanagedCodeSecurity]
         #endif
+        internal delegate int can_get_cookies_delegate(cef_request_handler_t* self, cef_browser_t* browser, cef_frame_t* frame, cef_request_t* request);
+        
+        [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
+        #if !DEBUG
+        [SuppressUnmanagedCodeSecurity]
+        #endif
+        internal delegate int can_set_cookie_delegate(cef_request_handler_t* self, cef_browser_t* browser, cef_frame_t* frame, cef_request_t* request, cef_cookie_t* cookie);
+        
+        [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
+        #if !DEBUG
+        [SuppressUnmanagedCodeSecurity]
+        #endif
         internal delegate int on_quota_request_delegate(cef_request_handler_t* self, cef_browser_t* browser, cef_string_t* origin_url, long new_size, cef_request_callback_t* callback);
         
         [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
@@ -118,6 +133,12 @@ namespace Xilium.CefGlue.Interop
         [SuppressUnmanagedCodeSecurity]
         #endif
         internal delegate int on_certificate_error_delegate(cef_request_handler_t* self, cef_browser_t* browser, CefErrorCode cert_error, cef_string_t* request_url, cef_sslinfo_t* ssl_info, cef_request_callback_t* callback);
+        
+        [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
+        #if !DEBUG
+        [SuppressUnmanagedCodeSecurity]
+        #endif
+        internal delegate int on_select_client_certificate_delegate(cef_request_handler_t* self, cef_browser_t* browser, int isProxy, cef_string_t* host, int port, UIntPtr certificatesCount, cef_x509certificate_t** certificates, cef_select_client_certificate_callback_t* callback);
         
         [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
         #if !DEBUG

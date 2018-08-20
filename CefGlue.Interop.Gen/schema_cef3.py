@@ -124,7 +124,31 @@ classdef = {
     'CefRunContextMenuCallback': {'role': ROLE_PROXY },
     'CefResourceBundle': {'role': ROLE_PROXY },
     # 2526
-    'CefResponseFilter': { 'role': ROLE_HANDLER },
+    'CefResponseFilter': { 'role': ROLE_HANDLER, 'autodispose': True },
     # 2623
     'CefResolveCallback': { 'role': ROLE_HANDLER },
+    # 51 (without views)
+	'CefDownloadImageCallback': { 'role': ROLE_HANDLER },
+	'CefImage': { 'role': ROLE_PROXY },
+	'CefMenuModelDelegate': { 'role': ROLE_HANDLER },
+	# 53
+	'CefRegisterCdmCallback': { 'role': ROLE_HANDLER },
+	# 54
+	'CefSelectClientCertificateCallback': { 'role': ROLE_PROXY },
+	'CefSSLStatus': { 'role': ROLE_PROXY, 'name': 'CefSslStatus' },
+	'CefV8Interceptor': { 'role': ROLE_HANDLER },
+	'CefX509CertPrincipal': { 'role': ROLE_PROXY },
+	'CefX509Certificate': { 'role': ROLE_PROXY },
+	# 55
+	'CefThread': { 'role': ROLE_PROXY },
+	'CefWaitableEvent': { 'role': ROLE_PROXY },
+    # 59
+    'CefAccessibilityHandler': { 'role': ROLE_HANDLER },
+    # 62
+    'CefExtension': { 'role': ROLE_PROXY },
+    'CefExtensionHandler': { 'role': ROLE_HANDLER, 'reversible': True },
+    'CefGetExtensionResourceCallback': { 'role': ROLE_PROXY },
+    # 63
+    'CefServer': { 'role': ROLE_PROXY },
+    'CefServerHandler': { 'role': ROLE_HANDLER },
     }

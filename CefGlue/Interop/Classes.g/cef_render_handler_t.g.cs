@@ -12,7 +12,8 @@ namespace Xilium.CefGlue.Interop
     [SuppressMessage("Microsoft.Design", "CA1049:TypesThatOwnNativeResourcesShouldBeDisposable")]
     internal unsafe struct cef_render_handler_t
     {
-        internal cef_base_t _base;
+        internal cef_base_ref_counted_t _base;
+        internal IntPtr _get_accessibility_handler;
         internal IntPtr _get_root_screen_rect;
         internal IntPtr _get_view_rect;
         internal IntPtr _get_screen_point;
@@ -24,6 +25,7 @@ namespace Xilium.CefGlue.Interop
         internal IntPtr _start_dragging;
         internal IntPtr _update_drag_cursor;
         internal IntPtr _on_scroll_offset_changed;
+        internal IntPtr _on_ime_composition_range_changed;
         
         [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
         #if !DEBUG
@@ -42,6 +44,12 @@ namespace Xilium.CefGlue.Interop
         [SuppressUnmanagedCodeSecurity]
         #endif
         internal delegate int has_one_ref_delegate(cef_render_handler_t* self);
+        
+        [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
+        #if !DEBUG
+        [SuppressUnmanagedCodeSecurity]
+        #endif
+        internal delegate cef_accessibility_handler_t* get_accessibility_handler_delegate(cef_render_handler_t* self);
         
         [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
         #if !DEBUG
@@ -108,6 +116,12 @@ namespace Xilium.CefGlue.Interop
         [SuppressUnmanagedCodeSecurity]
         #endif
         internal delegate void on_scroll_offset_changed_delegate(cef_render_handler_t* self, cef_browser_t* browser, double x, double y);
+        
+        [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
+        #if !DEBUG
+        [SuppressUnmanagedCodeSecurity]
+        #endif
+        internal delegate void on_ime_composition_range_changed_delegate(cef_render_handler_t* self, cef_browser_t* browser, cef_range_t* selected_range, UIntPtr character_boundsCount, cef_rect_t* character_bounds);
         
         private static int _sizeof;
         

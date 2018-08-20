@@ -113,6 +113,14 @@
 
         #region cef_version
 
+        public static string ChromeVersion
+        {
+            get
+            {
+                return string.Format("{0}.{1}.{2}.{3}", libcef.CHROME_VERSION_MAJOR, libcef.CHROME_VERSION_MINOR, libcef.CHROME_VERSION_BUILD, libcef.CHROME_VERSION_PATCH);
+            }
+        }
+
         private static void CheckVersion()
         {
             CheckVersionByApiHash();
@@ -250,11 +258,17 @@
 
         /// <summary>
         /// Perform a single iteration of CEF message loop processing. This function is
-        /// used to integrate the CEF message loop into an existing application message
-        /// loop. Care must be taken to balance performance against excessive CPU usage.
-        /// This function should only be called on the main application thread and only
-        /// if CefInitialize() is called with a CefSettings.multi_threaded_message_loop
-        /// value of false. This function will not block.
+        /// provided for cases where the CEF message loop must be integrated into an
+        /// existing application message loop. Use of this function is not recommended
+        /// for most users; use either the CefRunMessageLoop() function or
+        /// CefSettings.multi_threaded_message_loop if possible. When using this function
+        /// care must be taken to balance performance against excessive CPU usage. It is
+        /// recommended to enable the CefSettings.external_message_pump option when using
+        /// this function so that CefBrowserProcessHandler::OnScheduleMessagePumpWork()
+        /// callbacks can facilitate the scheduling process. This function should only be
+        /// called on the main application thread and only if CefInitialize() is called
+        /// with a CefSettings.multi_threaded_message_loop value of false. This function
+        /// will not block.
         /// </summary>
         public static void DoMessageLoopWork()
         {
@@ -342,22 +356,6 @@
 
             return libcef.post_delayed_task(threadId, task.ToNative(), delay) != 0;
         }
-        #endregion
-
-        #region cef_geolocation
-
-        /// <summary>
-        /// Request a one-time geolocation update. This function bypasses any user
-        /// permission checks so should only be used by code that is allowed to access
-        /// location information.
-        /// </summary>
-        public static bool GetGeolocation(CefGetGeolocationCallback callback)
-        {
-            if (callback == null) throw new ArgumentNullException("callback");
-
-            return libcef.get_geolocation(callback.ToNative()) != 0;
-        }
-
         #endregion
 
         #region cef_origin_whitelist
@@ -500,17 +498,67 @@
 
         #region cef_trace
 
-        // TODO: CefBeginTracing
-        //[DllImport(libcef.DllName, EntryPoint = "cef_begin_tracing", CallingConvention = libcef.CEF_CALL)]
-        //public static extern int begin_tracing(cef_trace_client_t* client, cef_string_t* categories);
 
-        // TODO: CefGetTraceBufferPercentFullAsync
-        //[DllImport(libcef.DllName, EntryPoint = "cef_get_trace_buffer_percent_full_async", CallingConvention = libcef.CEF_CALL)]
-        //public static extern int get_trace_buffer_percent_full_async();
+        /// <summary>
+        /// Start tracing events on all processes. Tracing is initialized asynchronously
+        /// and |callback| will be executed on the UI thread after initialization is
+        /// complete.
+        ///
+        /// If CefBeginTracing was called previously, or if a CefEndTracingAsync call is
+        /// pending, CefBeginTracing will fail and return false.
+        ///
+        /// |categories| is a comma-delimited list of category wildcards. A category can
+        /// have an optional '-' prefix to make it an excluded category. Having both
+        /// included and excluded categories in the same list is not supported.
+        ///
+        /// Example: "test_MyTest*"
+        /// Example: "test_MyTest*,test_OtherStuff"
+        /// Example: "-excluded_category1,-excluded_category2"
+        ///
+        /// This function must be called on the browser process UI thread.
+        /// </summary>
+        public static bool BeginTracing(string categories = null, CefCompletionCallback callback = null)
+        {
+            fixed (char* categories_str = categories)
+            {
+                var n_categories = new cef_string_t(categories_str, categories != null ? categories.Length : 0);
+                var n_callback = callback != null ? callback.ToNative() : null;
+                return libcef.begin_tracing(&n_categories, n_callback) != 0;
+            }
+        }
 
-        // TODO: CefEndTracingAsync
-        //[DllImport(libcef.DllName, EntryPoint = "cef_end_tracing_async", CallingConvention = libcef.CEF_CALL)]
-        //public static extern int end_tracing_async();
+        /// <summary>
+        /// Stop tracing events on all processes.
+        ///
+        /// This function will fail and return false if a previous call to
+        /// CefEndTracingAsync is already pending or if CefBeginTracing was not called.
+        ///
+        /// |tracing_file| is the path at which tracing data will be written and
+        /// |callback| is the callback that will be executed once all processes have
+        /// sent their trace data. If |tracing_file| is empty a new temporary file path
+        /// will be used. If |callback| is empty no trace data will be written.
+        ///
+        /// This function must be called on the browser process UI thread.
+        /// </summary>
+        public static bool EndTracing(string tracingFile = null, CefEndTracingCallback callback = null)
+        {
+            fixed (char* tracingFile_str = tracingFile)
+            {
+                var n_tracingFile = new cef_string_t(tracingFile_str, tracingFile != null ? tracingFile.Length : 0);
+                var n_callback = callback != null ? callback.ToNative() : null;
+                return libcef.end_tracing(&n_tracingFile, n_callback) != 0;
+            }
+        }
+
+        /// <summary>
+        /// Returns the current system trace time or, if none is defined, the current
+        /// high-res time. Can be used by clients to synchronize with the time
+        /// information in trace events.
+        /// </summary>
+        public static long NowFromSystemTraceTime()
+        {
+            return libcef.now_from_system_trace_time();
+        }
 
         // TODO: functions from cef_trace_event.h (not generated automatically)
 
@@ -668,25 +716,6 @@
         }
 
         /// <summary>
-        /// Parses |string| which represents a CSS color value. If |strict| is true
-        /// strict parsing rules will be applied. Returns true on success or false on
-        /// error. If parsing succeeds |color| will be set to the color value otherwise
-        /// |color| will remain unchanged.
-        /// </summary>
-        public static bool ParseCssColor(string value, bool strict, out CefColor color)
-        {
-            fixed (char* value_str = value)
-            {
-                var n_value = new cef_string_t(value_str, value != null ? value.Length : 0);
-
-                uint n_color = 0;
-                var result = libcef.parse_csscolor(&n_value, strict ? 1 : 0, &n_color) != 0;
-                color = new CefColor(n_color);
-                return result;
-            }
-        }
-
-        /// <summary>
         /// Parses the specified |json_string| and returns a dictionary or list
         /// representation. If JSON parsing fails this method returns NULL.
         /// </summary>
@@ -714,7 +743,7 @@
 
                 CefJsonParserError n_error_code;
                 cef_string_t n_error_msg;
-                var n_result = libcef.parse_jsonand_return_error(&n_value, options, & n_error_code, &n_error_msg);
+                var n_result = libcef.parse_jsonand_return_error(&n_value, options, &n_error_code, &n_error_msg);
 
                 var result = CefValue.FromNativeOrNull(n_result);
                 errorCode = n_error_code;
@@ -841,54 +870,6 @@
         }
 
         /// <summary>
-        /// Add a plugin path (directory + file). This change may not take affect until
-        /// after CefRefreshWebPlugins() is called. Can be called on any thread in the
-        /// browser process.
-        /// </summary>
-        public static void AddWebPluginPath(string path)
-        {
-            if (string.IsNullOrEmpty(path)) throw new ArgumentNullException("path");
-
-            fixed (char* path_str = path)
-            {
-                var n_path = new cef_string_t(path_str, path.Length);
-                libcef.add_web_plugin_path(&n_path);
-            }
-        }
-
-        /// <summary>
-        /// Add a plugin directory. This change may not take affect until after
-        /// CefRefreshWebPlugins() is called. Can be called on any thread in the browser
-        /// process.
-        /// </summary>
-        public static void AddWebPluginDirectory(string directory)
-        {
-            if (string.IsNullOrEmpty(directory)) throw new ArgumentNullException("path");
-
-            fixed (char* directory_str = directory)
-            {
-                var n_directory = new cef_string_t(directory_str, directory.Length);
-                libcef.add_web_plugin_directory(&n_directory);
-            }
-        }
-
-        /// <summary>
-        /// Remove a plugin path (directory + file). This change may not take affect
-        /// until after CefRefreshWebPlugins() is called. Can be called on any thread in
-        /// the browser process.
-        /// </summary>
-        public static void RemoveWebPluginPath(string path)
-        {
-            if (string.IsNullOrEmpty(path)) throw new ArgumentNullException("path");
-
-            fixed (char* path_str = path)
-            {
-                var n_path = new cef_string_t(path_str, path.Length);
-                libcef.remove_web_plugin_path(&n_path);
-            }
-        }
-
-        /// <summary>
         /// Unregister an internal plugin. This may be undone the next time
         /// CefRefreshWebPlugins() is called. Can be called on any thread in the browser
         /// process.
@@ -901,21 +882,6 @@
             {
                 var n_path = new cef_string_t(path_str, path.Length);
                 libcef.unregister_internal_web_plugin(&n_path);
-            }
-        }
-
-        /// <summary>
-        /// Force a plugin to shutdown. Can be called on any thread in the browser
-        /// process but will be executed on the IO thread.
-        /// </summary>
-        public static void ForceWebPluginShutdown(string path)
-        {
-            if (string.IsNullOrEmpty(path)) throw new ArgumentNullException("path");
-
-            fixed (char* path_str = path)
-            {
-                var n_path = new cef_string_t(path_str, path.Length);
-                libcef.force_web_plugin_shutdown(&n_path);
             }
         }
 
@@ -947,6 +913,60 @@
             {
                 var n_path = new cef_string_t(path_str, path.Length);
                 libcef.is_web_plugin_unstable(&n_path, callback.ToNative());
+            }
+        }
+
+        /// <summary>
+        /// Register the Widevine CDM plugin.
+        ///
+        /// The client application is responsible for downloading an appropriate
+        /// platform-specific CDM binary distribution from Google, extracting the
+        /// contents, and building the required directory structure on the local machine.
+        /// The CefBrowserHost::StartDownload method and CefZipArchive class can be used
+        /// to implement this functionality in CEF. Contact Google via
+        /// https://www.widevine.com/contact.html for details on CDM download.
+        ///
+        /// |path| is a directory that must contain the following files:
+        ///   1. manifest.json file from the CDM binary distribution (see below).
+        ///   2. widevinecdm file from the CDM binary distribution (e.g.
+        ///      widevinecdm.dll on on Windows, libwidevinecdm.dylib on OS X,
+        ///      libwidevinecdm.so on Linux).
+        ///   3. widevidecdmadapter file from the CEF binary distribution (e.g.
+        ///      widevinecdmadapter.dll on Windows, widevinecdmadapter.plugin on OS X,
+        ///      libwidevinecdmadapter.so on Linux).
+        ///
+        /// If any of these files are missing or if the manifest file has incorrect
+        /// contents the registration will fail and |callback| will receive a |result|
+        /// value of CEF_CDM_REGISTRATION_ERROR_INCORRECT_CONTENTS.
+        ///
+        /// The manifest.json file must contain the following keys:
+        ///   A. "os": Supported OS (e.g. "mac", "win" or "linux").
+        ///   B. "arch": Supported architecture (e.g. "ia32" or "x64").
+        ///   C. "x-cdm-module-versions": Module API version (e.g. "4").
+        ///   D. "x-cdm-interface-versions": Interface API version (e.g. "8").
+        ///   E. "x-cdm-host-versions": Host API version (e.g. "8").
+        ///   F. "version": CDM version (e.g. "1.4.8.903").
+        ///   G. "x-cdm-codecs": List of supported codecs (e.g. "vp8,vp9.0,avc1").
+        ///
+        /// A through E are used to verify compatibility with the current Chromium
+        /// version. If the CDM is not compatible the registration will fail and
+        /// |callback| will receive a |result| value of
+        /// CEF_CDM_REGISTRATION_ERROR_INCOMPATIBLE.
+        ///
+        /// |callback| will be executed asynchronously once registration is complete.
+        ///
+        /// On Linux this function must be called before CefInitialize() and the
+        /// registration cannot be changed during runtime. If registration is not
+        /// supported at the time that CefRegisterWidevineCdm() is called then |callback|
+        /// will receive a |result| value of CEF_CDM_REGISTRATION_ERROR_NOT_SUPPORTED.
+        /// </summary>
+        public static void CefRegisterWidevineCdm(string path, CefRegisterCdmCallback callback = null)
+        {
+            fixed (char* path_str = path)
+            {
+                var n_path = new cef_string_t(path_str, path.Length);
+                libcef.register_widevine_cdm(&n_path,
+                    callback != null ? callback.ToNative() : null);
             }
         }
 
@@ -998,6 +1018,168 @@
 
         #region cef_sandbox_win
         // TODO: investigate using of sandbox on windows and .net
+        #endregion
+
+        #region cef_ssl_info
+
+        /// <summary>
+        /// Returns true if the certificate status has any error, major or minor.
+        /// </summary>
+        public static bool IsCertStatusError(CefCertStatus status)
+        {
+            return libcef.is_cert_status_error(status) != 0;
+        }
+
+        /// <summary>
+        /// Returns true if the certificate status represents only minor errors
+        /// (e.g. failure to verify certificate revocation).
+        /// </summary>
+        public static bool IsCertStatusMinorError(CefCertStatus status)
+        {
+            return libcef.is_cert_status_minor_error(status) != 0;
+        }
+
+    #endregion
+
+        #region cef_crash_util
+
+        /// <summary>
+        /// Crash reporting is configured using an INI-style config file named
+        /// "crash_reporter.cfg". On Windows and Linux this file must be placed next to
+        /// the main application executable. On macOS this file must be placed in the
+        /// top-level app bundle Resources directory (e.g.
+        /// "&lt;appname&gt;.app/Contents/Resources"). File contents are as follows:
+        ///
+        ///  # Comments start with a hash character and must be on their own line.
+        ///
+        ///  [Config]
+        ///  ProductName=&lt;Value of the "prod" crash key; defaults to "cef"&gt;
+        ///  ProductVersion=&lt;Value of the "ver" crash key; defaults to the CEF version&gt;
+        ///  AppName=&lt;Windows only; App-specific folder name component for storing crash
+        ///           information; default to "CEF"&gt;
+        ///  ExternalHandler=&lt;Windows only; Name of the external handler exe to use
+        ///                   instead of re-launching the main exe; default to empty&gt;
+        ///  BrowserCrashForwardingEnabled=&lt;macOS only; True if browser process crashes
+        ///                                should be forwarded to the system crash
+        ///                                reporter; default to false&gt;
+        ///  ServerURL=&lt;crash server URL; default to empty&gt;
+        ///  RateLimitEnabled=&lt;True if uploads should be rate limited; default to true&gt;
+        ///  MaxUploadsPerDay=&lt;Max uploads per 24 hours, used if rate limit is enabled;
+        ///                    default to 5&gt;
+        ///  MaxDatabaseSizeInMb=&lt;Total crash report disk usage greater than this value
+        ///                       will cause older reports to be deleted; default to 20&gt;
+        ///  MaxDatabaseAgeInDays=&lt;Crash reports older than this value will be deleted;
+        ///                        default to 5&gt;
+        ///
+        ///  [CrashKeys]
+        ///  my_key1=&lt;small|medium|large&gt;
+        ///  my_key2=&lt;small|medium|large&gt;
+        ///
+        /// Config section:
+        ///
+        /// If "ProductName" and/or "ProductVersion" are set then the specified values
+        /// will be included in the crash dump metadata. On macOS if these values are set
+        /// to empty then they will be retrieved from the Info.plist file using the
+        /// "CFBundleName" and "CFBundleShortVersionString" keys respectively.
+        ///
+        /// If "AppName" is set on Windows then crash report information (metrics,
+        /// database and dumps) will be stored locally on disk under the
+        /// "C:\Users\[CurrentUser]\AppData\Local\[AppName]\User Data" folder. On other
+        /// platforms the CefSettings.user_data_path value will be used.
+        ///
+        /// If "ExternalHandler" is set on Windows then the specified exe will be
+        /// launched as the crashpad-handler instead of re-launching the main process
+        /// exe. The value can be an absolute path or a path relative to the main exe
+        /// directory. On Linux the CefSettings.browser_subprocess_path value will be
+        /// used. On macOS the existing subprocess app bundle will be used.
+        ///
+        /// If "BrowserCrashForwardingEnabled" is set to true on macOS then browser
+        /// process crashes will be forwarded to the system crash reporter. This results
+        /// in the crash UI dialog being displayed to the user and crash reports being
+        /// logged under "~/Library/Logs/DiagnosticReports". Forwarding of crash reports
+        /// from non-browser processes and Debug builds is always disabled.
+        ///
+        /// If "ServerURL" is set then crashes will be uploaded as a multi-part POST
+        /// request to the specified URL. Otherwise, reports will only be stored locally
+        /// on disk.
+        ///
+        /// If "RateLimitEnabled" is set to true then crash report uploads will be rate
+        /// limited as follows:
+        ///  1. If "MaxUploadsPerDay" is set to a positive value then at most the
+        ///     specified number of crashes will be uploaded in each 24 hour period.
+        ///  2. If crash upload fails due to a network or server error then an
+        ///     incremental backoff delay up to a maximum of 24 hours will be applied for
+        ///     retries.
+        ///  3. If a backoff delay is applied and "MaxUploadsPerDay" is > 1 then the
+        ///     "MaxUploadsPerDay" value will be reduced to 1 until the client is
+        ///     restarted. This helps to avoid an upload flood when the network or
+        ///     server error is resolved.
+        /// Rate limiting is not supported on Linux.
+        ///
+        /// If "MaxDatabaseSizeInMb" is set to a positive value then crash report storage
+        /// on disk will be limited to that size in megabytes. For example, on Windows
+        /// each dump is about 600KB so a "MaxDatabaseSizeInMb" value of 20 equates to
+        /// about 34 crash reports stored on disk. Not supported on Linux.
+        ///
+        /// If "MaxDatabaseAgeInDays" is set to a positive value then crash reports older
+        /// than the specified age in days will be deleted. Not supported on Linux.
+        ///
+        /// CrashKeys section:
+        ///
+        /// A maximum of 26 crash keys of each size can be specified for use by the
+        /// application. Crash key values will be truncated based on the specified size
+        /// (small = 64 bytes, medium = 256 bytes, large = 1024 bytes). The value of
+        /// crash keys can be set from any thread or process using the
+        /// CefSetCrashKeyValue function. These key/value pairs will be sent to the crash
+        /// server along with the crash dump file.+// A maximum of 26 crash keys of each size can be specified for use by the
+        /// application. Crash key values will be truncated based on the specified size
+        /// (small = 64 bytes, medium = 256 bytes, large = 1024 bytes). The value of
+        /// crash keys can be set from any thread or process using the
+        /// CefSetCrashKeyValue function. These key/value pairs will be sent to the crash
+        /// server along with the crash dump file.
+        /// </summary>
+        public static bool CrashReportingEnabled()
+        {
+            return libcef.crash_reporting_enabled() != 0;
+        }
+
+        /// <summary>
+        /// Sets or clears a specific key-value pair from the crash metadata.
+        /// </summary>
+        public static void SetCrashKeyValue(string key, string value)
+        {
+            fixed (char* key_ptr = key)
+            fixed (char* value_ptr = value)
+            {
+                var n_key = new cef_string_t(key_ptr, key.Length);
+                var n_value = new cef_string_t(value_ptr, value != null ? value.Length : 0);
+                libcef.set_crash_key_value(&n_key, &n_value);
+            }
+        }
+
+        #endregion
+
+        #region file_util
+
+        /// <summary>
+        /// Loads the existing "Certificate Revocation Lists" file that is managed by
+        /// Google Chrome. This file can generally be found in Chrome's User Data
+        /// directory (e.g. "C:\Users\[User]\AppData\Local\Google\Chrome\User Data\" on
+        /// Windows) and is updated periodically by Chrome's component updater service.
+        /// Must be called in the browser process after the context has been initialized.
+        /// See https://dev.chromium.org/Home/chromium-security/crlsets for background.
+        /// </summary>
+        public static void LoadCrlSetsFile(string path)
+        {
+            if (path == null) throw new ArgumentNullException(nameof(path));
+
+            fixed (char* path_ptr = path)
+            {
+                var n_path = new cef_string_t(path_ptr, path.Length);
+                libcef.load_crlsets_file(&n_path);
+            }
+        }
+
         #endregion
 
         private static void LoadIfNeed()

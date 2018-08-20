@@ -12,13 +12,12 @@ namespace Xilium.CefGlue.Interop
     [SuppressMessage("Microsoft.Design", "CA1049:TypesThatOwnNativeResourcesShouldBeDisposable")]
     internal unsafe struct cef_render_process_handler_t
     {
-        internal cef_base_t _base;
+        internal cef_base_ref_counted_t _base;
         internal IntPtr _on_render_thread_created;
         internal IntPtr _on_web_kit_initialized;
         internal IntPtr _on_browser_created;
         internal IntPtr _on_browser_destroyed;
         internal IntPtr _get_load_handler;
-        internal IntPtr _on_before_navigation;
         internal IntPtr _on_context_created;
         internal IntPtr _on_context_released;
         internal IntPtr _on_uncaught_exception;
@@ -72,12 +71,6 @@ namespace Xilium.CefGlue.Interop
         [SuppressUnmanagedCodeSecurity]
         #endif
         internal delegate cef_load_handler_t* get_load_handler_delegate(cef_render_process_handler_t* self);
-        
-        [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
-        #if !DEBUG
-        [SuppressUnmanagedCodeSecurity]
-        #endif
-        internal delegate int on_before_navigation_delegate(cef_render_process_handler_t* self, cef_browser_t* browser, cef_frame_t* frame, cef_request_t* request, CefNavigationType navigation_type, int is_redirect);
         
         [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
         #if !DEBUG

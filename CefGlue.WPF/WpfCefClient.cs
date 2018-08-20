@@ -3,7 +3,7 @@ using Xilium.CefGlue.Helpers.Log;
 
 namespace Xilium.CefGlue.WPF
 {
-    public sealed class WpfCefClient : CefClient
+    internal sealed class WpfCefClient : CefClient
     {
         private WpfCefBrowser _owner;
 
@@ -24,11 +24,6 @@ namespace Xilium.CefGlue.WPF
             _renderHandler = new WpfCefRenderHandler(owner, new NLogLogger("WpfCefRenderHandler"), new UiHelper(new NLogLogger("WpfCefRenderHandler")));
             _loadHandler = new WpfCefLoadHandler(owner);
             _jsDialogHandler = new WpfCefJSDialogHandler();
-        }
-
-        protected override CefDownloadHandler GetDownloadHandler()
-        {
-            return _owner.DownloadHandler;
         }
 
         protected override CefLifeSpanHandler GetLifeSpanHandler()
@@ -54,25 +49,6 @@ namespace Xilium.CefGlue.WPF
         protected override CefJSDialogHandler GetJSDialogHandler()
         {
             return _jsDialogHandler;
-        }
-
-        protected override CefContextMenuHandler GetContextMenuHandler()
-        {
-            if (this._owner.EnableContextMenu)
-            {
-                return null;
-            }
-            return EmptyCefContextMenuHandlerImpl.Instance;
-        }
-
-        private class EmptyCefContextMenuHandlerImpl : CefContextMenuHandler
-        {
-            public static EmptyCefContextMenuHandlerImpl Instance = new EmptyCefContextMenuHandlerImpl();
-
-            protected override void OnBeforeContextMenu(CefBrowser browser, CefFrame frame, CefContextMenuParams state, CefMenuModel model)
-            {
-                model.Clear();
-            }
         }
     }
 }

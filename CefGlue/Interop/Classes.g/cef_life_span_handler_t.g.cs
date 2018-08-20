@@ -12,10 +12,9 @@ namespace Xilium.CefGlue.Interop
     [SuppressMessage("Microsoft.Design", "CA1049:TypesThatOwnNativeResourcesShouldBeDisposable")]
     internal unsafe struct cef_life_span_handler_t
     {
-        internal cef_base_t _base;
+        internal cef_base_ref_counted_t _base;
         internal IntPtr _on_before_popup;
         internal IntPtr _on_after_created;
-        internal IntPtr _run_modal;
         internal IntPtr _do_close;
         internal IntPtr _on_before_close;
         
@@ -48,12 +47,6 @@ namespace Xilium.CefGlue.Interop
         [SuppressUnmanagedCodeSecurity]
         #endif
         internal delegate void on_after_created_delegate(cef_life_span_handler_t* self, cef_browser_t* browser);
-        
-        [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
-        #if !DEBUG
-        [SuppressUnmanagedCodeSecurity]
-        #endif
-        internal delegate int run_modal_delegate(cef_life_span_handler_t* self, cef_browser_t* browser);
         
         [UnmanagedFunctionPointer(libcef.CEF_CALLBACK)]
         #if !DEBUG
