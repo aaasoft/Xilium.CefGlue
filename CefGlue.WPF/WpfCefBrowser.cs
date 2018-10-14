@@ -29,9 +29,9 @@ namespace Xilium.CefGlue.WPF
         private int _browserHeight;
         private bool _browserSizeChanged;
 
-        public CefBrowser Browser { get; private set; }
-        public CefBrowserHost BrowserHost { get; private set; }
-        public WpfCefClient CefClient { get; private set; }
+        private CefBrowser _browser;
+        private CefBrowserHost _browserHost;
+        private WpfCefClient _cefClient;
 
         private Popup _popup;
         private Image _popupImage;
@@ -110,16 +110,16 @@ namespace Xilium.CefGlue.WPF
                 // 						this.browserPageD3dImage = null;
 
                 // TODO: What's the right way of disposing the browser instance?
-                if (BrowserHost != null)
+                if (_browserHost != null)
                 {
-                    BrowserHost.CloseBrowser();
-                    BrowserHost = null;
+                    _browserHost.CloseBrowser();
+                    _browserHost = null;
                 }
 
-                if (Browser != null)
+                if (_browser != null)
                 {
-                    Browser.Dispose();
-                    Browser = null;
+                    _browser.Dispose();
+                    _browser = null;
                 }
             }
 
@@ -170,15 +170,6 @@ namespace Xilium.CefGlue.WPF
 
         public string StartUrl { get; set; }
         public bool AllowsTransparency { get; set; }
-        /// <summary>
-        /// 是否启用右键菜单
-        /// </summary>
-        public bool EnableContextMenu { get; set; }
-        /// <summary>
-        /// 弹出处理器
-        /// </summary>
-        public PopupHandlerDelegate PopupHandler { get; set; }
-        public delegate bool PopupHandlerDelegate(CefBrowser browser, CefFrame frame, string targetUrl, string targetFrameName, CefWindowOpenDisposition targetDisposition, bool userGesture, CefPopupFeatures popupFeatures, CefWindowInfo windowInfo, ref CefClient client, CefBrowserSettings settings, ref bool noJavascriptAccess);
 
         public override void OnApplyTemplate()
         {
@@ -199,8 +190,8 @@ namespace Xilium.CefGlue.WPF
 
         public void ExecuteJavaScript(string code, string url, int line)
         {
-            if (Browser != null)
-                this.Browser.GetMainFrame().ExecuteJavaScript(code, url, line);
+            if (_browser != null)
+                this._browser.GetMainFrame().ExecuteJavaScript(code, url, line);
         }
 
 
@@ -236,10 +227,10 @@ namespace Xilium.CefGlue.WPF
                             windowInfo.SetAsWindowless(hParentWnd, AllowsTransparency);
 
                             var settings = new CefBrowserSettings();
-                            CefClient = new WpfCefClient(this);
+                            _cefClient = new WpfCefClient(this);
 
                             // This is the first time the window is being rendered, so create it.
-                            CefBrowserHost.CreateBrowser(windowInfo, CefClient, settings, !string.IsNullOrEmpty(StartUrl) ? StartUrl : "about:blank");
+                            CefBrowserHost.CreateBrowser(windowInfo, _cefClient, settings, !string.IsNullOrEmpty(StartUrl) ? StartUrl : "about:blank");
 
                             _created = true;
                         }
@@ -254,10 +245,10 @@ namespace Xilium.CefGlue.WPF
                             _browserSizeChanged = true;
 
                             // If the window has already been created, just resize it
-                            if (BrowserHost != null)
+                            if (_browserHost != null)
                             {
                                 _logger.Trace("CefBrowserHost::WasResized to {0}x{1}.", newWidth, newHeight);
-                                BrowserHost.WasResized();
+                                _browserHost.WasResized();
                             }
                         }
                     }
@@ -273,9 +264,9 @@ namespace Xilium.CefGlue.WPF
             {
                 try
                 {
-                    if (BrowserHost != null)
+                    if (_browserHost != null)
                     {
-                        BrowserHost.SendFocusEvent(true);
+                        _browserHost.SendFocusEvent(true);
                     }
                 }
                 catch (Exception ex)
@@ -288,9 +279,9 @@ namespace Xilium.CefGlue.WPF
             {
                 try
                 {
-                    if (BrowserHost != null)
+                    if (_browserHost != null)
                     {
-                        BrowserHost.SendFocusEvent(false);
+                        _browserHost.SendFocusEvent(false);
                     }
                 }
                 catch (Exception ex)
@@ -303,7 +294,7 @@ namespace Xilium.CefGlue.WPF
             {
                 try
                 {
-                    if (BrowserHost != null)
+                    if (_browserHost != null)
                     {
                         CefMouseEvent mouseEvent = new CefMouseEvent()
                         {
@@ -313,7 +304,7 @@ namespace Xilium.CefGlue.WPF
 
                         mouseEvent.Modifiers = GetMouseModifiers();
 
-                        BrowserHost.SendMouseMoveEvent(mouseEvent, true);
+                        _browserHost.SendMouseMoveEvent(mouseEvent, true);
                         //_logger.Debug("Browser_MouseLeave");
                     }
                 }
@@ -327,7 +318,7 @@ namespace Xilium.CefGlue.WPF
             {
                 try
                 {
-                    if (BrowserHost != null)
+                    if (_browserHost != null)
                     {
                         Point cursorPos = arg.GetPosition(this);
 
@@ -339,7 +330,7 @@ namespace Xilium.CefGlue.WPF
 
                         mouseEvent.Modifiers = GetMouseModifiers();
 
-                        BrowserHost.SendMouseMoveEvent(mouseEvent, false);
+                        _browserHost.SendMouseMoveEvent(mouseEvent, false);
 
                         //_logger.Debug(string.Format("Browser_MouseMove: ({0},{1})", cursorPos.X, cursorPos.Y));
                     }
@@ -354,7 +345,7 @@ namespace Xilium.CefGlue.WPF
             {
                 try
                 {
-                    if (BrowserHost != null)
+                    if (_browserHost != null)
                     {
                         Focus();
 
@@ -369,11 +360,11 @@ namespace Xilium.CefGlue.WPF
                         mouseEvent.Modifiers = GetMouseModifiers();
 
                         if (arg.ChangedButton == MouseButton.Left)
-                            BrowserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Left, false, arg.ClickCount);
+                            _browserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Left, false, arg.ClickCount);
                         else if (arg.ChangedButton == MouseButton.Middle)
-                            BrowserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Middle, false, arg.ClickCount);
+                            _browserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Middle, false, arg.ClickCount);
                         else if (arg.ChangedButton == MouseButton.Right)
-                            BrowserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Right, false, arg.ClickCount);
+                            _browserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Right, false, arg.ClickCount);
 
                         //_logger.Debug(string.Format("Browser_MouseDown: ({0},{1})", cursorPos.X, cursorPos.Y));
                     }
@@ -388,7 +379,7 @@ namespace Xilium.CefGlue.WPF
             {
                 try
                 {
-                    if (BrowserHost != null)
+                    if (_browserHost != null)
                     {
                         Point cursorPos = arg.GetPosition(this);
 
@@ -401,11 +392,11 @@ namespace Xilium.CefGlue.WPF
                         mouseEvent.Modifiers = GetMouseModifiers();
 
                         if (arg.ChangedButton == MouseButton.Left)
-                            BrowserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Left, true, arg.ClickCount);
+                            _browserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Left, true, arg.ClickCount);
                         else if (arg.ChangedButton == MouseButton.Middle)
-                            BrowserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Middle, true, arg.ClickCount);
+                            _browserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Middle, true, arg.ClickCount);
                         else if (arg.ChangedButton == MouseButton.Right)
-                            BrowserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Right, true, arg.ClickCount);
+                            _browserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Right, true, arg.ClickCount);
 
                         //_logger.Debug(string.Format("Browser_MouseUp: ({0},{1})", cursorPos.X, cursorPos.Y));
                     }
@@ -420,7 +411,7 @@ namespace Xilium.CefGlue.WPF
             {
                 try
                 {
-                    if (BrowserHost != null)
+                    if (_browserHost != null)
                     {
                         Point cursorPos = arg.GetPosition(this);
 
@@ -430,7 +421,7 @@ namespace Xilium.CefGlue.WPF
                             Y = (int)cursorPos.Y,
                         };
 
-                        BrowserHost.SendMouseWheelEvent(mouseEvent, 0, arg.Delta);
+                        _browserHost.SendMouseWheelEvent(mouseEvent, 0, arg.Delta);
                     }
                 }
                 catch (Exception ex)
@@ -442,7 +433,7 @@ namespace Xilium.CefGlue.WPF
             // TODO: require more intelligent processing
             browser.PreviewTextInput += (sender, arg) =>
             {
-                if (BrowserHost != null)
+                if (_browserHost != null)
                 {
                     _logger.Debug("TextInput: text {0}", arg.Text);
 
@@ -457,7 +448,7 @@ namespace Xilium.CefGlue.WPF
 
                         keyEvent.Modifiers = GetKeyboardModifiers();
 
-                        BrowserHost.SendKeyEvent(keyEvent);
+                        _browserHost.SendKeyEvent(keyEvent);
                     }
                 }
 
@@ -469,7 +460,7 @@ namespace Xilium.CefGlue.WPF
             {
                 try
                 {
-                    if (BrowserHost != null)
+                    if (_browserHost != null)
                     {
                         //_logger.Debug(string.Format("KeyDown: system key {0}, key {1}", arg.SystemKey, arg.Key));
                         CefKeyEvent keyEvent = new CefKeyEvent()
@@ -482,7 +473,7 @@ namespace Xilium.CefGlue.WPF
 
                         keyEvent.Modifiers = GetKeyboardModifiers();
 
-                        BrowserHost.SendKeyEvent(keyEvent);
+                        _browserHost.SendKeyEvent(keyEvent);
                     }
                 }
                 catch (Exception ex)
@@ -498,7 +489,7 @@ namespace Xilium.CefGlue.WPF
             {
                 try
                 {
-                    if (BrowserHost != null)
+                    if (_browserHost != null)
                     {
                         //_logger.Debug(string.Format("KeyUp: system key {0}, key {1}", arg.SystemKey, arg.Key));
                         CefKeyEvent keyEvent = new CefKeyEvent()
@@ -511,7 +502,7 @@ namespace Xilium.CefGlue.WPF
 
                         keyEvent.Modifiers = GetKeyboardModifiers();
 
-                        BrowserHost.SendKeyEvent(keyEvent);
+                        _browserHost.SendKeyEvent(keyEvent);
                     }
                 }
                 catch (Exception ex)
@@ -525,7 +516,7 @@ namespace Xilium.CefGlue.WPF
             {
                 try
                 {
-                    if (BrowserHost != null)
+                    if (_browserHost != null)
                     {
                         Point cursorPos = arg.GetPosition(this);
 
@@ -537,7 +528,7 @@ namespace Xilium.CefGlue.WPF
 
                         mouseEvent.Modifiers = GetMouseModifiers();
 
-                        BrowserHost.SendMouseMoveEvent(mouseEvent, false);
+                        _browserHost.SendMouseMoveEvent(mouseEvent, false);
 
                         //_logger.Debug(string.Format("Popup_MouseMove: ({0},{1})", cursorPos.X, cursorPos.Y));
                     }
@@ -551,7 +542,7 @@ namespace Xilium.CefGlue.WPF
             {
                 try
                 {
-                    if (BrowserHost != null)
+                    if (_browserHost != null)
                     {
                         Point cursorPos = arg.GetPosition(this);
 
@@ -563,7 +554,7 @@ namespace Xilium.CefGlue.WPF
 
                         mouseEvent.Modifiers = GetMouseModifiers();
 
-                        BrowserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Left, true, 1);
+                        _browserHost.SendMouseClickEvent(mouseEvent, CefMouseButtonType.Left, true, 1);
 
                         //_logger.Debug(string.Format("Popup_MouseDown: ({0},{1})", cursorPos.X, cursorPos.Y));
                     }
@@ -577,7 +568,7 @@ namespace Xilium.CefGlue.WPF
             {
                 try
                 {
-                    if (BrowserHost != null)
+                    if (_browserHost != null)
                     {
                         Point cursorPos = arg.GetPosition(this);
                         int delta = arg.Delta;
@@ -588,7 +579,7 @@ namespace Xilium.CefGlue.WPF
                         };
 
                         mouseEvent.Modifiers = GetMouseModifiers();
-                        BrowserHost.SendMouseWheelEvent(mouseEvent, 0, delta);
+                        _browserHost.SendMouseWheelEvent(mouseEvent, 0, delta);
 
                         //_logger.Debug(string.Format("MouseWheel: ({0},{1})", cursorPos.X, cursorPos.Y));
                     }
@@ -610,14 +601,14 @@ namespace Xilium.CefGlue.WPF
 
             _mainUiDispatcher.Invoke(DispatcherPriority.Normal, new Action(delegate
             {
-                if (Browser != null)
+                if (_browser != null)
                 {
                     hasAlreadyBeenInitialized = true;
                 }
                 else
                 {
-                    Browser = browser;
-                    BrowserHost = Browser.GetHost();
+                    _browser = browser;
+                    _browserHost = _browser.GetHost();
                     // _browserHost.SetFocus(IsFocused);
 
                     width = (int)_browserWidth;
@@ -630,7 +621,7 @@ namespace Xilium.CefGlue.WPF
                 return;
 
             if (width > 0 && height > 0)
-                BrowserHost.WasResized();
+                _browserHost.WasResized();
 
             // 			mainUiDispatcher.Invoke(DispatcherPriority.Normal, new Action(delegate
             // 			{
@@ -999,8 +990,8 @@ namespace Xilium.CefGlue.WPF
             // Remove leading whitespace from the URL
             url = url.TrimStart();
 
-            if (Browser != null)
-                Browser.GetMainFrame().LoadUrl(url);
+            if (_browser != null)
+                _browser.GetMainFrame().LoadUrl(url);
             else
                 StartUrl = url;
         }
@@ -1010,42 +1001,42 @@ namespace Xilium.CefGlue.WPF
             // Remove leading whitespace from the URL
             url = url.TrimStart();
 
-            if (Browser != null)
-                Browser.GetMainFrame().LoadString(content, url);
+            if (_browser != null)
+                _browser.GetMainFrame().LoadString(content, url);
         }
 
         public bool CanGoBack()
         {
-            if (Browser != null)
-                return Browser.CanGoBack;
+            if (_browser != null)
+                return _browser.CanGoBack;
             else
                 return false;
         }
 
         public void GoBack()
         {
-            if (Browser != null)
-                Browser.GoBack();
+            if (_browser != null)
+                _browser.GoBack();
         }
 
         public bool CanGoForward()
         {
-            if (Browser != null)
-                return Browser.CanGoForward;
+            if (_browser != null)
+                return _browser.CanGoForward;
             else
                 return false;
         }
 
         public void GoForward()
         {
-            if (Browser != null)
-                Browser.GoForward();
+            if (_browser != null)
+                _browser.GoForward();
         }
 
         public void Refresh()
         {
-            if (Browser != null)
-                Browser.Reload();
+            if (_browser != null)
+                _browser.Reload();
         }
 
         #endregion

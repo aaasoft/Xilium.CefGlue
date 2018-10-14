@@ -1,29 +1,31 @@
-﻿################################################################################
-# 此 .gitignore 文件已由 Microsoft(R) Visual Studio 自动创建。
-################################################################################
+# Repository/Project Specific
+/src.g/
 
-/.vs
-syntax: glob
-# project's output
-bin
-obj
+# Repository/Project Shared
+/bin/
+/obj/
+/out/
+/external/
 
-# visual studio
-*.user
-*.suo
+# Build Results
+[Bb]in/
+[Oo]bj/
 
-# monodevelop
-*.userprefs
-
-# python
+# Python
 *.pyc
 
-# SHFB user preferences file
-*.shfbproj_*
+# IDE: Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
 
-# Visual Studio
-*.VC.opendb
-*.sdf
+# IDE: Visual Studio Code
+!.vscode/
 
-relre:^CefGlue.Interop.Gen/Classes.Handlers.tmpl/
-relre:^CefGlue.Interop.Gen/Classes.Proxies.tmpl/
+# IDE: IDEA family
+.idea
+
+# IDE: Xamarin Studio (MonoDevelop)
+*.userprefs
