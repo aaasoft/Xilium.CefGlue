@@ -174,6 +174,11 @@ namespace Xilium.CefGlue.WPF
         /// 是否启用右键菜单
         /// </summary>
         public bool EnableContextMenu { get; set; }
+        /// <summary>
+        /// 弹出处理器
+        /// </summary>
+        public PopupHandlerDelegate PopupHandler { get; set; }
+        public delegate bool PopupHandlerDelegate(CefBrowser browser, CefFrame frame, string targetUrl, string targetFrameName, CefWindowOpenDisposition targetDisposition, bool userGesture, CefPopupFeatures popupFeatures, CefWindowInfo windowInfo, ref CefClient client, CefBrowserSettings settings, ref bool noJavascriptAccess);
 
         public override void OnApplyTemplate()
         {
