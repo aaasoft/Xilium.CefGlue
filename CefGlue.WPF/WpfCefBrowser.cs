@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -170,6 +170,10 @@ namespace Xilium.CefGlue.WPF
 
         public string StartUrl { get; set; }
         public bool AllowsTransparency { get; set; }
+        /// <summary>
+        /// 是否启用右键菜单
+        /// </summary>
+        public bool EnableContextMenu { get; set; }
 
         public override void OnApplyTemplate()
         {

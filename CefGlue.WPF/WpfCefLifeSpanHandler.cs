@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Xilium.CefGlue.WPF
 {
@@ -16,6 +16,11 @@ namespace Xilium.CefGlue.WPF
         protected override void OnAfterCreated(CefBrowser browser)
         {
             _owner.HandleAfterCreated(browser);
+        }
+
+        protected override bool OnBeforePopup(CefBrowser browser, CefFrame frame, string targetUrl, string targetFrameName, CefWindowOpenDisposition targetDisposition, bool userGesture, CefPopupFeatures popupFeatures, CefWindowInfo windowInfo, ref CefClient client, CefBrowserSettings settings, ref bool noJavascriptAccess)
+        {
+            return base.OnBeforePopup(browser, frame, targetUrl, targetFrameName, targetDisposition, userGesture, popupFeatures, windowInfo, ref client, settings, ref noJavascriptAccess);
         }
     }
 }
