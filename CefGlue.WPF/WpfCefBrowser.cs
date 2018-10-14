@@ -179,6 +179,10 @@ namespace Xilium.CefGlue.WPF
         /// </summary>
         public PopupHandlerDelegate PopupHandler { get; set; }
         public delegate bool PopupHandlerDelegate(CefBrowser browser, CefFrame frame, string targetUrl, string targetFrameName, CefWindowOpenDisposition targetDisposition, bool userGesture, CefPopupFeatures popupFeatures, CefWindowInfo windowInfo, ref CefClient client, CefBrowserSettings settings, ref bool noJavascriptAccess);
+        /// <summary>
+        /// 下载处理器
+        /// </summary>
+        public CefDownloadHandler DownloadHandler { get; set; }
 
         public override void OnApplyTemplate()
         {
