@@ -3,7 +3,7 @@ using Xilium.CefGlue.Helpers.Log;
 
 namespace Xilium.CefGlue.WPF
 {
-    internal sealed class WpfCefClient : CefClient
+    public sealed class WpfCefClient : CefClient
     {
         private WpfCefBrowser _owner;
 
